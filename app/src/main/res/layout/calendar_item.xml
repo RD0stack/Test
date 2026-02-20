@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:padding="8dp">
+
+    <TextView
+        android:id="@+id/dayNumber"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Day"
+        android:textSize="16sp"
+        android:textColor="#000" />
+
+</RelativeLayout> 
+
+<!-- Background color handling based on attendance type -->
+
+<style name="AttendanceTypeColors">
+    <item name="present">#A5D6A7</item>  <!-- Green for present -->
+    <item name="absent">#EF9A9A</item>   <!-- Red for absent -->
+    <item name="late">#FFF59D</item>     <!-- Yellow for late -->
+</style>
