@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        #countDisplay {
+            font-size: 24px;
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Attendance Tracker</h1>
+    <div id="countDisplay">Count: <span id="count">0</span></div>
+    <button id="homeButton">Home</button>
+    <button id="officeButton">Office</button>
+    <button id="exportButton">Export to CSV</button>
+    <button id="undoButton">Undo</button>
+
+    <script>
+        let count = 0;
+        let lastAction = null;
+
+        document.getElementById('homeButton').onclick = function() {
+            lastAction = 'home';
+            count++;
+            updateCountDisplay();
+        };
+
+        document.getElementById('officeButton').onclick = function() {
+            lastAction = 'office';
+            count++;
+            updateCountDisplay();
+        };
+
+        document.getElementById('undoButton').onclick = function() {
+            if (lastAction) {
+                count--;
+                updateCountDisplay();
+                lastAction = null;
+            }
+        };
+
+        document.getElementById('exportButton').onclick = function() {
+            const csvContent = 'data:text/csv;charset=utf-8,Count\n' + count;
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', 'attendance.csv');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        function updateCountDisplay() {
+            document.getElementById('count').innerText = count;
+        }
+    </script>
+</body>
+</html>
