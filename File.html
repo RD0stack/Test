@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hybrid Attendance Pro</title>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Segoe UI}
+body{
+background:linear-gradient(135deg,#667eea,#764ba2);
+display:flex;justify-content:center;padding:15px
+}
+.app{
+background:white;width:100%;max-width:500px;
+border-radius:25px;padding:20px
+}
+h1{text-align:center;margin-bottom:10px}
+
+.month-nav{
+display:flex;justify-content:space-between;
+margin-bottom:10px;align-items:center
+}
+.nav-btn{
+background:#667eea;color:white;border:none;
+padding:6px 14px;border-radius:8px;font-weight:bold
+}
+
+.weekdays{
+display:grid;grid-template-columns:repeat(7,1fr);
+margin-bottom:5px;font-size:12px;font-weight:bold;
+text-align:center;color:#555
+}
+
+.calendar{
+display:grid;grid-template-columns:repeat(7,1fr);
+gap:5px;margin-bottom:15px
+}
+.day{
+padding:10px;text-align:center;border-radius:8px;
+background:#eee;font-size:12px;cursor:pointer
+}
+.selected{outline:3px solid black}
+.office{background:#28a745;color:white}
+.home{background:#ffc107}
+.leave{background:#f44336;color:white}
+.weekoff{background:#9c27b0;color:white}
+
+.button-group{
+display:flex;gap:6px;margin-bottom:10px
+}
+.btn{
+flex:1;padding:8px;border:none;border-radius:8px;
+color:white;font-size:12px;font-weight:bold
+}
+.home-btn{background:#ffc107;color:black}
+.office-btn{background:#28a745}
+.leave-btn{background:#f44336}
+.weekoff-btn{background:#9c27b0}
+
+.action-row{
+display:flex;gap:10px;margin-bottom:10px
+}
+
+.undo-btn{
+flex:1;
+background:linear-gradient(45deg,#ff416c,#ff4b2b);
+color:white;border:none;padding:10px;
+border-radius:10px;font-weight:bold
+}
+
+.clear-btn{
+flex:1;
+background:linear-gradient(45deg,#11998e,#38ef7d);
+color:white;border:none;padding:10px;
+border-radius:10px;font-weight:bold
+}
+
+.auto-home-btn{
+width:100%;
+background:linear-gradient(45deg,#667eea,#764ba2);
+color:white;border:none;padding:10px;
+border-radius:10px;margin-bottom:12px;
+font-weight:bold
+}
+
+.weekoff-setting{
+margin-bottom:10px;font-size:13px
+}
+select{
+padding:5px;border-radius:6px;margin-right:5px
+}
+
+.report{
+background:#f5f5f5;padding:10px;
+border-radius:12px;font-size:13px
+}
+.export-btn{
+background:#2196f3;color:white;
+border:none;padding:6px 10px;
+border-radius:6px;margin-top:8px
+}
+</style>
+</head>
+
+<body>
+<div class="app">
+
+<h1>Hybrid Attendance</h1>
+
+<div class="month-nav">
+<button class="nav-btn" onclick="changeMonth(-1)">◀</button>
+<div id="monthLabel"></div>
+<button class="nav-btn" onclick="changeMonth(1)">▶</button>
+</div>
+
+<div class="weekdays">
+<div>Sun</div><div>Mon</div><div>Tue</div>
+<div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+</div>
+
+<div id="calendar" class="calendar"></div>
+
+<div class="button-group">
+<button class="btn home-btn" onclick="markSelected('home')">Home</button>
+<button class="btn office-btn" onclick="markSelected('office')">Office</button>
+<button class="btn leave-btn" onclick="markSelected('leave')">Leave</button>
+<button class="btn weekoff-btn" onclick="markSelected('weekoff')">Week Off</button>
+</div>
+
+<div class="action-row">
+<button class="undo-btn" onclick="undoLast()">↶ Undo</button>
+<button class="clear-btn" onclick="clearMonth()">🧹 Clear</button>
+</div>
+
+<button class="auto-home-btn" onclick="setRemainingHome()">🏠 Set Remaining as Home</button>
+
+<div class="weekoff-setting">
+<b>Set 2 Weekly Offs:</b><br><br>
+<select id="weekDay1">
+<option value="0">Sunday</option>
+<option value="1">Monday</option>
+<option value="2">Tuesday</option>
+<option value="3">Wednesday</option>
+<option value="4">Thursday</option>
+<option value="5">Friday</option>
+<option value="6">Saturday</option>
+</select>
+
+<select id="weekDay2">
+<option value="">None</option>
+<option value="0">Sunday</option>
+<option value="1">Monday</option>
+<option value="2">Tuesday</option>
+<option value="3">Wednesday</option>
+<option value="4">Thursday</option>
+<option value="5">Friday</option>
+<option value="6">Saturday</option>
+</select>
+
+<button onclick="applyRecurringWeekOff()">Apply</button>
+</div>
+
+<div class="report">
+<b>📊 Monthly Report</b>
+<p>Office: <span id="rOffice">0</span></p>
+<p>Home: <span id="rHome">0</span></p>
+<p>Leave: <span id="rLeave">0</span></p>
+<p>Week Off: <span id="rWeekoff">0</span></p>
+<p>Total Working Days: <span id="rTotal">0</span></p>
+<button class="export-btn" onclick="exportCSV()">Export CSV</button>
+</div>
+
+</div>
+
+<script>
+
+const STORAGE="attendanceData";
+const HISTORY="historyStack";
+let currentDate=new Date();
+let selectedDates=[];
+
+function init(){
+if(!localStorage.getItem(STORAGE)) localStorage.setItem(STORAGE,JSON.stringify({}));
+if(!localStorage.getItem(HISTORY)) localStorage.setItem(HISTORY,JSON.stringify([]));
+generateCalendar();
+}
+
+function changeMonth(offset){
+currentDate.setMonth(currentDate.getMonth()+offset);
+selectedDates=[];
+generateCalendar();
+}
+
+function generateCalendar(){
+let cal=document.getElementById("calendar");
+cal.innerHTML="";
+let y=currentDate.getFullYear();
+let m=currentDate.getMonth();
+let first=new Date(y,m,1).getDay();
+let days=new Date(y,m+1,0).getDate();
+document.getElementById("monthLabel").innerText=
+currentDate.toLocaleString("default",{month:"long"})+" "+y;
+
+let data=JSON.parse(localStorage.getItem(STORAGE));
+
+for(let i=0;i<first;i++) cal.innerHTML+="<div></div>";
+
+for(let d=1;d<=days;d++){
+let mm=String(m+1).padStart(2,"0");
+let dd=String(d).padStart(2,"0");
+let key=`${y}-${mm}-${dd}`;
+let cls="day";
+if(data[key]) cls+=" "+data[key];
+cal.innerHTML+=`<div class="${cls}" onclick="toggleSelect('${key}',this)">${d}</div>`;
+}
+updateReport();
+}
+
+function toggleSelect(date,el){
+if(selectedDates.includes(date)){
+selectedDates=selectedDates.filter(d=>d!==date);
+el.classList.remove("selected");
+}else{
+selectedDates.push(date);
+el.classList.add("selected");
+}
+}
+
+function markSelected(type){
+if(selectedDates.length==0){alert("Select dates first");return;}
+let data=JSON.parse(localStorage.getItem(STORAGE));
+let history=JSON.parse(localStorage.getItem(HISTORY));
+history.push(JSON.stringify(data));
+localStorage.setItem(HISTORY,JSON.stringify(history));
+selectedDates.forEach(d=>data[d]=type);
+localStorage.setItem(STORAGE,JSON.stringify(data));
+selectedDates=[];
+generateCalendar();
+}
+
+function undoLast(){
+let history=JSON.parse(localStorage.getItem(HISTORY));
+if(history.length==0)return;
+let previous=history.pop();
+localStorage.setItem(STORAGE,previous);
+localStorage.setItem(HISTORY,JSON.stringify(history));
+generateCalendar();
+}
+
+function clearMonth(){
+let data=JSON.parse(localStorage.getItem(STORAGE));
+let history=JSON.parse(localStorage.getItem(HISTORY));
+history.push(JSON.stringify(data));
+localStorage.setItem(HISTORY,JSON.stringify(history));
+let y=currentDate.getFullYear();
+let m=String(currentDate.getMonth()+1).padStart(2,"0");
+for(let key in data){
+let [yy,mm]=key.split("-");
+if(yy==y && mm==m) delete data[key];
+}
+localStorage.setItem(STORAGE,JSON.stringify(data));
+generateCalendar();
+}
+
+function setRemainingHome(){
+let data=JSON.parse(localStorage.getItem(STORAGE));
+let history=JSON.parse(localStorage.getItem(HISTORY));
+history.push(JSON.stringify(data));
+localStorage.setItem(HISTORY,JSON.stringify(history));
+
+let y=currentDate.getFullYear();
+let m=currentDate.getMonth();
+let monthStr=String(m+1).padStart(2,"0");
+let days=new Date(y,m+1,0).getDate();
+
+let office=0,weekoff=0;
+for(let key in data){
+let [yy,mm]=key.split("-");
+if(yy==y && mm==monthStr){
+if(data[key]=="office") office++;
+if(data[key]=="weekoff") weekoff++;
+}
+}
+
+if((office+weekoff)<=7){
+alert("Office + Week Off must be more than 7");
+return;
+}
+
+for(let d=1; d<=days; d++){
+let dd=String(d).padStart(2,"0");
+let key=`${y}-${monthStr}-${dd}`;
+if(!data[key]) data[key]="home";
+}
+
+localStorage.setItem(STORAGE,JSON.stringify(data));
+generateCalendar();
+}
+
+function applyRecurringWeekOff(){
+let d1=document.getElementById("weekDay1").value;
+let d2=document.getElementById("weekDay2").value;
+
+let y=currentDate.getFullYear();
+let m=currentDate.getMonth();
+let days=new Date(y,m+1,0).getDate();
+
+let data=JSON.parse(localStorage.getItem(STORAGE));
+let history=JSON.parse(localStorage.getItem(HISTORY));
+history.push(JSON.stringify(data));
+localStorage.setItem(HISTORY,JSON.stringify(history));
+
+for(let d=1;d<=days;d++){
+let date=new Date(y,m,d);
+if(date.getDay()==d1 || date.getDay()==d2){
+let mm=String(m+1).padStart(2,"0");
+let dd=String(d).padStart(2,"0");
+let key=`${y}-${mm}-${dd}`;
+data[key]="weekoff";
+}
+}
+localStorage.setItem(STORAGE,JSON.stringify(data));
+generateCalendar();
+}
+
+function updateReport(){
+let data=JSON.parse(localStorage.getItem(STORAGE));
+let counts={office:0,home:0,leave:0,weekoff:0};
+let y=currentDate.getFullYear();
+let m=String(currentDate.getMonth()+1).padStart(2,"0");
+
+for(let key in data){
+let [yy,mm]=key.split("-");
+if(yy==y && mm==m){
+counts[data[key]]++;
+}
+}
+document.getElementById("rOffice").innerText=counts.office;
+document.getElementById("rHome").innerText=counts.home;
+document.getElementById("rLeave").innerText=counts.leave;
+document.getElementById("rWeekoff").innerText=counts.weekoff;
+document.getElementById("rTotal").innerText=counts.office+counts.home;
+}
+
+function exportCSV(){
+let data=JSON.parse(localStorage.getItem(STORAGE));
+let y=currentDate.getFullYear();
+let m=String(currentDate.getMonth()+1).padStart(2,"0");
+
+let csv="Date,Status\n";
+for(let key in data){
+let [yy,mm]=key.split("-");
+if(yy==y && mm==m){
+csv+=`${key},${data[key]}\n`;
+}
+}
+let blob=new Blob([csv],{type:"text/csv"});
+let url=URL.createObjectURL(blob);
+let a=document.createElement("a");
+a.href=url;
+a.download=`attendance_${m}_${y}.csv`;
+a.click();
+URL.revokeObjectURL(url);
+}
+
+window.onload=init;
+
+</script>
+</body>
+</html>
